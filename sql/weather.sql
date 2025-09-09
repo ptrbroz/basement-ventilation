@@ -3,7 +3,7 @@ CREATE EXTENSION IF NOT EXISTS timescaledb;
 
 -- measurements sent from the device: temp, rhum, plus absolute huminidity derived server-side
 -- floats (mentioned measured quantities) rounded to 2 decimal places, multiplied by 100 and stored as integers
-CREATE TABLE IF NOT EXISTS weather (
+CREATE TABLE IF NOT EXISTS weather_device (
     time_device TIMESTAMPTZ NOT NULL, --part of msg
     dtime_server_ms INTEGER NOT NULL, --calculated on receive
     temp_in INTEGER, -- following are part of msg
@@ -15,5 +15,15 @@ CREATE TABLE IF NOT EXISTS weather (
     fan_state INTEGER --TODO: document values
 );
 
-SELECT create_hypertable('weather', 'time_device');
 
+-- measurements from a CHMU weather station
+CREATE TABLE IF NOT EXISTS weather_reference (
+    time TIMESTAMPTZ NOT NULL, 
+    temp_out INTEGER, 
+    rhum_out INTEGER,
+    ahum_out INTEGER --calculated server-side
+);
+
+
+SELECT create_hypertable('weather_reference', 'time', if_not_exists => TRUE);
+SELECT create_hypertable('weather_device', 'time_device', if_not_exists => TRUE);
