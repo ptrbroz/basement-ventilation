@@ -1,0 +1,398 @@
+[
+    {
+        "id": "057425926446ff2a",
+        "type": "tab",
+        "label": "database test",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "f0f450cae18bb60c",
+        "type": "tab",
+        "label": "CHMU grabber",
+        "disabled": false,
+        "info": "\r\nFlow that periodically downloads weather\r\ndata provided by CHMU (https://opendata.chmi.cz)\r\nand writes them to database for comparision\r\nwith data measured by device.\r\n\r\n",
+        "env": []
+    },
+    {
+        "id": "e7d5c2eda574523c",
+        "type": "postgreSQLConfig",
+        "name": "",
+        "host": "braeburn",
+        "hostFieldType": "str",
+        "port": 5432,
+        "portFieldType": "num",
+        "database": "${DB_NAME}",
+        "databaseFieldType": "str",
+        "ssl": "true",
+        "sslFieldType": "bool",
+        "applicationName": "",
+        "applicationNameType": "str",
+        "max": 10,
+        "maxFieldType": "num",
+        "idle": 1000,
+        "idleFieldType": "num",
+        "connectionTimeout": 10000,
+        "connectionTimeoutFieldType": "num",
+        "user": "${DB_USER}",
+        "userFieldType": "env",
+        "password": "${DB_PASSWORD}",
+        "passwordFieldType": "str"
+    },
+    {
+        "id": "1ed92a3290c33330",
+        "type": "postgresql",
+        "z": "057425926446ff2a",
+        "name": "",
+        "query": "INSERT INTO weather_device (\n    time_device,\n    dtime_server_ms,\n    temp_in,\n    temp_out,\n    rhum_in,\n    rhum_out,\n    ahum_in,\n    ahum_out,\n    fan_state\n) VALUES (\n    $1,$2,$3,$4,$5,$6,$7,$8,$9\n)",
+        "postgreSQLConfig": "e7d5c2eda574523c",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 630,
+        "y": 220,
+        "wires": [
+            [
+                "40009febfc348ddc"
+            ]
+        ]
+    },
+    {
+        "id": "05e6202016bbcc31",
+        "type": "inject",
+        "z": "057425926446ff2a",
+        "d": true,
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "60",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 190,
+        "y": 340,
+        "wires": [
+            [
+                "50ec811df1d76369"
+            ]
+        ]
+    },
+    {
+        "id": "50ec811df1d76369",
+        "type": "function",
+        "z": "057425926446ff2a",
+        "name": "function 1",
+        "func": "// Helper functions\nfunction randInt(min, max) {\n    return Math.floor(Math.random() * (max - min + 1)) + min;\n}\n\n// --- Sine wave helper ---\nfunction sineWave(t, periodMs, min, max) {\n    // t = current time in ms\n    // periodMs = period of the sine wave in ms\n    // min, max = output range\n    let phase = (t % periodMs) / periodMs;  // 0..1\n    let angle = phase * 2 * Math.PI;        // 0..2π\n    let normalized = (Math.sin(angle) + 1) / 2; // 0..1\n    return Math.round(min + normalized * (max - min));\n}\n\nlet now = Date.now();\nlet periodMs = 3600 * 1000;  // 1 hour in ms\n\n// Temperatures in range 0–4500 (i.e., 0.00–45.00 °C)\nlet temp_in = sineWave(now, periodMs, 0, 4500);\nlet temp_out = sineWave(now + periodMs/4, periodMs, 0, 4500); \n// offset by 15 mins for variety\n\n// Generate relative humidity (%) scaled *100\nlet rhum_in = randInt(2000, 9000);  // 20% - 90%\nlet rhum_out = randInt(2000, 9000);\n\n// Calculate absolute humidity (approx) in g/m³ *100\n// Formula: AH = 6.112 * e^(17.67*T/(T+243.5)) * RH * 2.1674 / (273.15 + T)\nfunction calcAH(tempC, rhumPercent) {\n    let T = tempC / 100;\n    let RH = rhumPercent / 100;\n    let AH = 6.112 * Math.exp(17.67 * T / (T + 243.5)) * RH * 2.1674 / (273.15 + T);\n    return Math.round(AH * 100);  // scale *100\n}\n\nlet ahum_in = calcAH(temp_in, rhum_in);\nlet ahum_out = calcAH(temp_out, rhum_out);\n\n// Server timestamp\nlet dtime_server_ms = randInt(-1, 2500);\n\nmsg.params = [\n    new Date().toISOString(),  //time device\n    dtime_server_ms,\n    temp_in,\n    temp_out,\n    rhum_in,\n    rhum_out,\n    ahum_in,\n    ahum_out,\n    randInt(0, 1)  // fan state\n]\n\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 420,
+        "y": 340,
+        "wires": [
+            [
+                "1ed92a3290c33330",
+                "40009febfc348ddc"
+            ]
+        ]
+    },
+    {
+        "id": "40009febfc348ddc",
+        "type": "debug",
+        "z": "057425926446ff2a",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 840,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "8e46a075a5173ea9",
+        "type": "comment",
+        "z": "f0f450cae18bb60c",
+        "name": "json in msg.data_chmu",
+        "info": "",
+        "x": 660,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "b3621488e3aa0974",
+        "type": "inject",
+        "z": "f0f450cae18bb60c",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 160,
+        "y": 460,
+        "wires": [
+            [
+                "0eb48f3ff8cb9e63"
+            ]
+        ]
+    },
+    {
+        "id": "b0d0abab37e1165a",
+        "type": "debug",
+        "z": "f0f450cae18bb60c",
+        "name": "debug 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 520,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "0eb48f3ff8cb9e63",
+        "type": "function",
+        "z": "f0f450cae18bb60c",
+        "name": "function 2",
+        "func": "let s = \"2025-09-09T00:00:00Z\";\nlet mydate = Date.parse(s);\nmsg.payload = mydate;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 460,
+        "wires": [
+            [
+                "b0d0abab37e1165a"
+            ]
+        ]
+    },
+    {
+        "id": "cca9d112972c76fa",
+        "type": "http request",
+        "z": "f0f450cae18bb60c",
+        "name": "",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 510,
+        "y": 240,
+        "wires": [
+            [
+                "6385bd828fdd7172"
+            ]
+        ]
+    },
+    {
+        "id": "6d04a76eba869767",
+        "type": "function",
+        "z": "f0f450cae18bb60c",
+        "name": "prep_address",
+        "func": "// in : N/A\n// out : address whence weather data json is to be downloaded from\n\nlet WSI = \"0-203-0-11514\"; //Klementinum\n\nlet now = new Date(Date.now()); //returns system time\n\nlet year = now.getFullYear();\nlet month = String(now.getMonth() + 1).padStart(2, \"0\");\nlet day = String(now.getDate()).padStart(2, \"0\");\n\nlet dateString = `${year}${month}${day}`\n\nlet preAddr = \"https://opendata.chmi.cz/meteorology/climate/now/data/10m-\"; //10-min interval data\n\nlet addr = `${preAddr}${WSI}-${dateString}.json`\n\nmsg.url = addr;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 240,
+        "wires": [
+            [
+                "cca9d112972c76fa"
+            ]
+        ]
+    },
+    {
+        "id": "6385bd828fdd7172",
+        "type": "function",
+        "z": "f0f450cae18bb60c",
+        "name": "rename",
+        "func": "if(msg.statusCode == 404){\n    node.warn(\"error 404 returned\");\n    return null;\n}\nmsg.data_chmu = msg.payload;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 660,
+        "y": 240,
+        "wires": [
+            [
+                "15f87f3e04a254f9"
+            ]
+        ]
+    },
+    {
+        "id": "7196b10592855860",
+        "type": "inject",
+        "z": "f0f450cae18bb60c",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "3600",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "object",
+        "payloadType": "date",
+        "x": 170,
+        "y": 240,
+        "wires": [
+            [
+                "6d04a76eba869767"
+            ]
+        ]
+    },
+    {
+        "id": "15f87f3e04a254f9",
+        "type": "postgresql",
+        "z": "f0f450cae18bb60c",
+        "name": "Get latest entry time",
+        "query": "SELECT time\nFROM weather_reference\nORDER BY time DESC\nLIMIT 1;",
+        "postgreSQLConfig": "e7d5c2eda574523c",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 760,
+        "y": 300,
+        "wires": [
+            [
+                "8e6aaca91a57f911"
+            ]
+        ]
+    },
+    {
+        "id": "1a8309c0cf6bdd48",
+        "type": "inject",
+        "z": "f0f450cae18bb60c",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 520,
+        "y": 300,
+        "wires": [
+            [
+                "15f87f3e04a254f9"
+            ]
+        ]
+    },
+    {
+        "id": "8e6aaca91a57f911",
+        "type": "function",
+        "z": "f0f450cae18bb60c",
+        "name": "extract_relevant",
+        "func": "/* \nmeasurement type data from CHMU in following order structure:\n0 = STATION -- disregard (const due to data source)\n1 = ELEMENT -- useful. T for temperature [°C], H for rel humidity [%]\n2 = DT      -- useful. time of measurement\n3 = VAL     -- useful. data\n4 = FLAG    -- disregard (not used by temp or humidity measurements)\n5 = QUALITY -- disregard (data quality, seems to be constantly set to UNKNOWN (=5.0))\n*/\n\n//relevant indices for data\nconst MTYPE = 1;\nconst MTIME = 2;\nconst MVALUE = 3; \n\nconst T_TEMP = \"T\";\nconst T_RHUM = \"H\";\n\nlet data = msg.data_chmu.data.data.values; //yea, the CHMU JSON actually looks like that\n//msg.payload = data;\n//return msg;\n\n\nlet newestDateInDatabase = Date.parse(msg.payload[0].time);\n\n/*\nFollowing assumptions are made of the input data:\n1) timestamps for temperature and relative humidity match (ie. both T and H get measured at say 15:00, rather than one at 15:01 and the other at 15:02)\n2) measurements for a given sensor form chunks (ie. all measurements of temp first, then measurements of something else...)\n3) the timestamps within chunks are in ascending order\n4) the humidity chunk comes before the temperature chunk\n5) chunks have same length\n*/\n\n//prep arrays for data \nlet prepLen = 150;\nmsg.timeArray = Array.from({ length: prepLen }, () => null);\nmsg.tempArray = Array.from({ length: prepLen }, () => null);\nmsg.rhumArray = Array.from({ length: prepLen }, () => null);\nmsg.ahumArray = Array.from({ length: prepLen }, () => null);\nmsg.dataLen = 0;\n\nlet i = 0; //for going over input data\n\nlet hchunkStart = NaN;\nlet tchunkStart = NaN;\n\n// find start of humidity chunk\nwhile(i<data.length){\n    if(data[i][MTYPE] == T_RHUM){\n        break;\n    }\n    i++;\n}\nhchunkStart = i;\n\n// find start of temp chunk\nwhile(i<data.length){\n    if(data[i][MTYPE] == T_TEMP){\n        break;\n    }\n    i++;\n}\ntchunkStart = i;\n\n\n// if something has gone wrong, return msg with empty arrays\nif((tchunkStart + 1)>=data.length){\n    return msg;\n}\n\n// go through data, if newer than latest, save.\ni = 0;\n\n\nwhile(data[hchunkStart+i][MTYPE] == T_RHUM){\n\n    let thisDate = Date.parse(data[i][MTIME]);\n    let thisDateRaw = data[i][MTIME];\n    if(thisDate <= newestDateInDatabase){\n        continue;\n    }\n    //node.warn(tchunkStart+i);\n    //node.warn(data[(tchunkStart + i)])\n    msg.timeArray[msg.dataLen] = thisDateRaw;\n    msg.tempArray[msg.dataLen] = Math.round((data[tchunkStart + i][MVALUE])*100);\n    msg.rhumArray[msg.dataLen] = Math.round(data[hchunkStart + i][MVALUE]); \n    msg.ahumArray[msg.dataLen] = Math.round(0); //TODO calculate absolute humidity\n    msg.dataLen++;\n    if(msg.dataLen >= prepLen){\n        node.warn(\"less length prepared than data found, only taking some.\");\n        break;\n    }\n    i++;\n}\n\n// the postgres block is a bitch... gotta pass a bunch of messages instead of one big one\n\n// turn msg into array of messages\n\nlet retArray = Array.from({ length: msg.dataLen }, () => null);\nfor (let index = 0; index < msg.dataLen; index++) {\n    let newMsg = {};\n    newMsg.payload = 0;\n    newMsg.params = [\n        msg.timeArray[index],\n        msg.tempArray[index],\n        msg.rhumArray[index],\n        msg.ahumArray[index]\n    ]\n    retArray[index] = newMsg;\n}\n\n\nreturn [retArray]; //if not wrapped in another array, nodered treats it as sending 1 msg to multiple outputs...",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 880,
+        "y": 240,
+        "wires": [
+            [
+                "d7a7c26017e975cb"
+            ]
+        ]
+    },
+    {
+        "id": "d7a7c26017e975cb",
+        "type": "postgresql",
+        "z": "f0f450cae18bb60c",
+        "name": "Insert to weather reference",
+        "query": "INSERT INTO weather_reference (\n    time,\n    temp_out,\n    rhum_out,\n    ahum_out\n) VALUES (\n    $1,$2,$3,$4\n)",
+        "postgreSQLConfig": "e7d5c2eda574523c",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 1120,
+        "y": 240,
+        "wires": [
+            [
+                "7730add98189bf0b"
+            ]
+        ]
+    },
+    {
+        "id": "7730add98189bf0b",
+        "type": "debug",
+        "z": "f0f450cae18bb60c",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1260,
+        "y": 300,
+        "wires": []
+    }
+]
