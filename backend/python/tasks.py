@@ -1,8 +1,10 @@
 import requests
 import os
 import psycopg2
-import logging
 from dateutil import parser
+
+import logging
+logger = logging.getLogger(__name__)
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
@@ -25,7 +27,7 @@ def fetch_CHMU_json(WSI = WSI_CHMU_KLEMENTINUM_STRING):
         response = requests.get(url)
         json = response.json()
     except:
-        logging.error(f"Could not obtain json from {url}. Response status {response.status_code}")
+        logger.error(f"Could not obtain json from {url}. Response status {response.status_code}")
         return None
     return json
 
@@ -40,7 +42,7 @@ def get_latest_logged_timestamp():
             port=os.getenv("DB_PORT", "5432")
         )
     except:
-        logging.error("Failed to connect to database.")
+        logger.error("Failed to connect to database.")
         return None
 
     try:
@@ -56,7 +58,7 @@ def get_latest_logged_timestamp():
         dbConn.close()
         return latest_time
     except:
-        logging.error("Failed to get latest time from database.")
+        logger.error("Failed to get latest time from database.")
         return None
 
 def task_update_reference_weather_databse():
@@ -108,7 +110,7 @@ def task_update_reference_weather_databse():
         i += 1
     chunkLen = i - hChunkStart
 
-    logging.debug(f"Hchunk @ {hChunkStart}, Tchunk @ {tChunkStart}, chunklen {chunkLen}")
+    logger.debug(f"Hchunk @ {hChunkStart}, Tchunk @ {tChunkStart}, chunklen {chunkLen}")
 
     # add entries to database if they are new
     try:
@@ -121,10 +123,10 @@ def task_update_reference_weather_databse():
         )
         cur = dbConn.cursor()
     except:
-        logging.error("Failed to connect to database.")
+        logger.error("Failed to connect to database.")
         return None
 
-    # logging vars
+    # logger vars
     logFirstTime = None
     logLastTime = None
     logCounter = 0
@@ -148,25 +150,25 @@ def task_update_reference_weather_databse():
             insertTuple = (thisTime, int(thisT*100), int(thisH*100), int(thisAH*100))
             cur.execute("INSERT INTO weather_reference (time, temp_out, rhum_out, ahum_out) VALUES (%s, %s, %s, %s)", insertTuple)
         except:
-            logging.error(f"Failed to insert reference weather data tuple: {insertTuple}")
+            logger.error(f"Failed to insert reference weather data tuple: {insertTuple}")
             return None
 
     dbConn.commit()
     cur.close()
     dbConn.close()
 
-    logging.info(f"Performed {logCounter} ref weather insertions. Time range {logFirstTime} to {logLastTime}.")
-
+    logger.info(f"Performed {logCounter} ref weather insertions. Time range {logFirstTime} to {logLastTime}.")
 
 
 
 
 def start_scheduler():
+    logger.info("Starting scheduler.")
     scheduler = BackgroundScheduler()
-    #scheduler.add_job(fetch_data, 'interval', minutes=5)
+    scheduler.add_job(task_update_reference_weather_databse, 'cron', hour='*', minute = 10)
     scheduler.start()
 
 
+
 if __name__ == "__main__":
-    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
     print(task_update_reference_weather_databse())

@@ -1,7 +1,12 @@
 import math
 
+import logging
+logger = logging.getLogger(__name__)
+
 def estimate_absolute_humidity(t : float, rhumPercent : float):
-    """Estimates ahum [g/m3] using a LUT. This function replicates the functionality in the embedded device to avoid sending extra data to backend. Inaccuracies are an intended result of replication.
+    """
+    Estimates ahum [g/m3] from temperature [°C] and relative humidity using a LUT. 
+    This function replicates the functionality in the embedded device to avoid sending extra data to backend. Inaccuracies are an intended result of replication.
     """
 
     # temp -> ahum LUT, starting at T = 10°C. Each step of lut is a delta of 1°C
