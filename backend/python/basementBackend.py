@@ -14,6 +14,7 @@ from tasks import start_scheduler
 import time
 
 
+
 if __name__ == "__main__":
     logger.info("Main entry")
     #start_mqtt()       # start MQTT in background
