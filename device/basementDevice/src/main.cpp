@@ -5,6 +5,8 @@
 #include <TinyGsmClient.h> // !! has to come after modem def above
 #include <PubSubClient.h>
 
+
+
 #define SerialMon Serial //USB uart
 #define SerialAT Serial1 //HW uart 0
 
@@ -29,6 +31,8 @@ TinyGsm        modem(debugger, fakeResetPin);
 TinyGsmClient client(modem);
 PubSubClient  mqtt(client);
 
+
+
 void setup() {
 
   SerialMon.begin(9600); //usb
@@ -46,17 +50,29 @@ void setup() {
   SerialMon.print("Modem Info: ");
   SerialMon.println(modemInfo);
 
+  modem.sendAT("+CPSI?");
+  modem.waitResponse();
 
-  SerialMon.print("Waiting for network...");
-  if (!modem.waitForNetwork(60000*30)) {
-    SerialMon.println(" fail");
-    delay(10000);
-    return;
-  }
-  SerialMon.println(" success");
+  modem.sendAT("+CSQ");
+  modem.waitResponse();
 
-  if (modem.isNetworkConnected()) { SerialMon.println("Network connected"); }
+  modem.sendAT("+COPS?");
+  modem.waitResponse();
 
+  modem.sendAT("+CGDCONT?");
+  modem.waitResponse();
+
+  modem.sendAT("+CEREG?");
+  modem.waitResponse();
+
+  modem.sendAT("+CGACT?");
+  modem.waitResponse();
+  
+  modem.sendAT("+NETOPEN?");
+  modem.waitResponse();
+
+  modem.sendAT("+NETOPEN");
+  modem.waitResponse();
 
 }
 
