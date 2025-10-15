@@ -6,6 +6,7 @@
 #include "pico/mutex.h"
 
 #include "queue.h"
+#include "logging.h"
 
 void setup(){
     stdio_init_all(); //includes stdout to usb uart init @ 115200 baud
@@ -18,41 +19,27 @@ void setup(){
 
 int main(){
 
-
-
     setup();
 
-    Queue q;
-    initQueue(&q, 5);
-
-    busy_wait_ms(3000);
-
-    for(int i = 0; i < 8; i++){
-        int retVal = pushToQueue(&q, i);
-        printf("Push %d, retval %d\n\r", i, retVal);
-    }
-
-    for(int i = 0; i < 3; i++){
-        int pop = -100;
-        int retVal = popFromQueue(&q, &pop);
-        printf("POP val %d, retval %d\n\r", pop, retVal);
-    }
-
-    for(int i = 10; i < 15; i++){
-        int retVal = pushToQueue(&q, i);
-        printf("Push %d, retval %d\n\r", i, retVal);
-    }
-
-    for(int i = 0; i < 10; i++){
-        int pop = -100;
-        int retVal = popFromQueue(&q, &pop);
-        printf("POP val %d, retval %d\n\r", pop, retVal);
-    }
-
-
     while(1){
+        int testInt = 42;
+        char testString[] = "Herojam slava!";
+        float testFloat = 3.14159;
+        
+        logmsg(debug, "Test integer is %d", testInt);
+        logmsg(info, "Compared to test integer %d, test float %.3f is smaller.", testInt, testFloat);
+        logmsg(warn, "This is a warning.");
+        logmsg(error, "test string is %s", testString);
+
         busy_wait_ms(5000);
-        printf("testing at\n\r");
+
+        if(usbLoggingLevel == debug){
+            usbLoggingLevel = warn;
+        }
+        else{
+            usbLoggingLevel = debug;
+        }
+
     }
 
 

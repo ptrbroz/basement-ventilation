@@ -35,7 +35,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(BasementDevice BasementDevice.c sim7028.c queue.c incomingBuffers.c)
+add_executable(BasementDevice BasementDevice.c sim7028.c queue.c incomingBuffers.c logging.c)
 
 pico_set_program_name(BasementDevice "BasementDevice")
 pico_set_program_version(BasementDevice "0.1")
