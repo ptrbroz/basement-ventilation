@@ -2,8 +2,8 @@
 #include "pico/stdlib.h"
 #include "defines.h"
 #include <string.h>
+#include "queue.h"
 
-const int INBUFFLEN = 2048;
 
 void sendAT(char *str){
     const int basicLen = 7; //2x2 for crlfs, 1x2 for AT, 1 for terminator

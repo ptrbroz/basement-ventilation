@@ -7,7 +7,7 @@ LogLevel usbLoggingLevel = debug;
 const char logLevelChar[] = "diwE~"; //chars used to prefix log messages of corresponding levels
 
 
-void logmsg(LogLevel level, const char *format, ...){
+inline void __attribute__((always_inline)) logmsg(LogLevel level, const char *format, ...){
     if(level == off){
         return; //off level meant to be reserved for turning off all logging to selected method, so calling this function with it makes no sense
     }

@@ -55,4 +55,6 @@ target_include_directories(BasementDevice PRIVATE
 
 pico_add_extra_outputs(BasementDevice)
 
+
+target_compile_options(BasementDevice PRIVATE -O1)
 target_link_options(BasementDevice PRIVATE -Wl,--print-memory-usage)

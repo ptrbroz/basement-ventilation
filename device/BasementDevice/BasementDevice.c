@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
+
 #include "defines.h"
 #include "sim7028.h"
 
@@ -14,7 +15,6 @@ void setup(){
     uart_init(MODEM_UART, MODEM_UART_BAUD);
     gpio_set_function(MODEM_UART_RX_PIN, GPIO_FUNC_UART);
     gpio_set_function(MODEM_UART_TX_PIN, GPIO_FUNC_UART);
-
 }
 
 int main(){
