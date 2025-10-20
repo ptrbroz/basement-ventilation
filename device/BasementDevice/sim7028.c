@@ -3,13 +3,13 @@
 #include "defines.h"
 #include <string.h>
 #include "queue.h"
+#include "logging.h"
 
 
 void sendAT(char *str){
     const int basicLen = 7; //2x2 for crlfs, 1x2 for AT, 1 for terminator
     int totalLen = basicLen + strlen(str);
-    char strToSend[totalLen];
-    __asm__ __volatile__ ("" ::: "memory");
+    char strToSend[totalLen]; //TODO constant length
 
     strToSend[0] = '\r';
     strToSend[1] = '\n';
@@ -23,6 +23,7 @@ void sendAT(char *str){
     for(int i = 0; i < (totalLen-1); i++){
         uart_putc_raw(MODEM_UART, strToSend[i]); // uart_puts threatens to do some crlf conversions. Let's not risk that.
     }
+    logmsg(debug, "Sent AT[%s]", str);
 }
 
 
