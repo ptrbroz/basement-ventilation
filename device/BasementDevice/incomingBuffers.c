@@ -2,29 +2,30 @@
 #include <stdlib.h>
 #include <pico.h>
 #include "pico/stdlib.h"
+#include "pico/critical_section.h"
 
 #include "incomingBuffers.h"
-//#include "pico/critical_section.h"
 #include "queue.h"
 #include "logging.h"
 #include "defines.h"
 
 
-#define COMMAND_BUFFER_SLOTS 20 
 #define COMMAND_BUFFER_LEN 1024 //Assumption: no AT command line (ranging from <cr><lf> to another <cr><lf>, included) received from SIM7028 will be longer than COMMAND_BUFFER_LEN
+#define COMMAND_BUFFER_SLOTS 20 
+#define COMMAND_QUEUE_LEN (COMMAND_BUFFER_SLOTS+5) //COMMAND_BUFFER_SLOTS should be enough. Extra so that I don't need to think too hard about corner cases
+#define INCOMING_CHAR_QUEUE_LEN 4096
 
 // convention: commandBuffer is considered empty (and free to be overwritten) if the THIRD character in it is '\0'
 char *commandBuffers[COMMAND_BUFFER_SLOTS];             // received AT commands saved for processing. BEWARE! Final carriage return is replaced with \0
 int commandBufferLen[COMMAND_BUFFER_SLOTS];             // length of command stored in buffer, including starting \r\n and final \0\n. 
 
-int activeBuffer = 0;                                   // index of buffer to which chars are currently being accumulated
-int posInActiveBuffer = 0;                              // next index to write to in active buff
+int activeBuffer = 0;                                  // index of buffer to which chars are currently being accumulated
 
 const int maxReadsPerIsr = 32;                          // only read this many or fewer chars per ISR
 
-bool lastCharWasCR = false;                             //for detecting message edges
 
-Queue fullCommandBuffers;
+IntQueue fullCommandBuffers;                            // indices of command buffers waiting to be parsed and processed
+CharQueue incomingChars;                            // queue for storing incoming chars from hardware uart fifo
 
 int initCommandBuffers(){
     static bool alreadyCalled = 0;
@@ -43,24 +44,118 @@ int initCommandBuffers(){
         commandBuffers[i] = newBuffer;
         commandBufferLen[i] = 0;
         newBuffer[2] = '\0';        //mark buffer free to be overwritten
-
     }
 
     activeBuffer = 0;
-    posInActiveBuffer = 0;
-    lastCharWasCR = false;
 
-    if(initQueue(&fullCommandBuffers, COMMAND_BUFFER_SLOTS)){
-        logmsg(error, "Buffer init fail to init queue.");
+    if(initIntQueue(&fullCommandBuffers, COMMAND_QUEUE_LEN)){    
+        logmsg(error, "Buffer init fail to init FCB queue.");
+        return 1;
+    }
+
+    if(initCharQueue(&incomingChars, INCOMING_CHAR_QUEUE_LEN)){
+        logmsg(error, "Buffer init fail to init IC queue.");
         return 1;
     }
 
     return 0;
 }
 
-bool isrModemUartRx(__unused struct repeating_timer *t){
+void isrMoveCharsToIncomingQueue(){
+    int charsRead = 0;
+    while(uart_is_readable(MODEM_UART) && (charsRead < maxReadsPerIsr)){
+        charsRead++;
+        char incoming = uart_getc(MODEM_UART);
+        if(pushToCharQueue(&incomingChars, incoming)){
+            logmsg(error, "ICQ full!");
+            break;
+        }
+    }
+}
 
-    //logmsg(debug, "ISRuart IN");
+// updates activeBuffer to be the index of next free buffer. Retval: 0 on success, 1 on fail (all buffers taken)
+int updateActiveBuffer(){
+    int buffToCheck = (activeBuffer + 1) % COMMAND_BUFFER_SLOTS;
+    while(buffToCheck != activeBuffer){
+        char marking = commandBuffers[buffToCheck][2];
+        if(marking == '\0'){
+            // this buffer is marked as free -- claim it
+            activeBuffer = buffToCheck;
+            return 0;
+        }
+        else{
+            // keep searching
+            buffToCheck = (buffToCheck + 1) % COMMAND_BUFFER_SLOTS;
+        }
+    }
+    // ran the full circle -- no buffers are free
+    return 1;
+}
+
+// ASSUMPTION: <cr><lf> does not occur inside data, so those may be used to detect starts and ends of incoming AT commands
+int processIncomingCharsIntoBuffers(int maxChars){
+
+    static bool lastCharWasCR = false;                             // for detecting message edges
+    static int posInActiveBuffer = 0;                              // next index to write to in active buff
+    static bool activeBufferClosed = false;                        // set to true when a new buffer needs to be found before processing new chars
+
+    int charsProcessed = 0;
+
+    while(charsProcessed < maxChars){
+
+        if(activeBufferClosed){
+            int retVal = updateActiveBuffer();
+            if(!retVal){ // OK, ready to work on next command
+                activeBufferClosed = false;
+                posInActiveBuffer = 0;
+                lastCharWasCR = false;
+            }
+            else{
+                // failed to find a free buffer -- don't pop any more chars as there will be nowhere to put them
+                break;
+            }
+        }
+
+        char poppedChar;
+
+        // incomingChars queue is accessed by uart ISR -- thus the disable
+        uint32_t irqStatus = save_and_disable_interrupts();
+        int retVal = popFromCharQueue(&incomingChars, &poppedChar);
+        restore_interrupts_from_disabled(irqStatus);
+
+        if(retVal){
+            // incoming char queue was empty -- no more work to be done
+            break;
+        }
+
+        charsProcessed++;
+        commandBuffers[activeBuffer][posInActiveBuffer] = poppedChar;
+
+        if(lastCharWasCR&&(poppedChar=='\n')&&(posInActiveBuffer>1)){
+            // end of command detected -- time to close the buffer
+            commandBuffers[activeBuffer][posInActiveBuffer - 1] = '\0'; //replace last CR with terminator to play nice with str funs
+            commandBufferLen[activeBuffer] = posInActiveBuffer+1;
+            activeBufferClosed = true;
+            logmsg(debug, "CB %d", activeBuffer);
+            if(pushToIntQueue(&fullCommandBuffers, activeBuffer)){
+                // queue full -- this should never happen
+                logmsg(error, "FCB queue full (wtf!!)");
+                commandBuffers[activeBuffer][2] = '\0';     // mark buffer for reuse since it wasn't pushed and as such will not be popped and marked. Probably does not matter
+            }
+        }
+        else{
+            // this is not yet the end
+            posInActiveBuffer++;
+            lastCharWasCR = (poppedChar == '\r');
+        }
+    }
+
+    return charsProcessed;
+
+}
+
+/*
+bool isrModemUartRx(__unused struct repeating_timer *t){
 
     int charsRead = 0;
 
@@ -71,18 +166,6 @@ bool isrModemUartRx(__unused struct repeating_timer *t){
         char incoming = uart_getc(MODEM_UART);
 
         commandBuffers[activeBuffer][posInActiveBuffer] = incoming;
-
-        /*
-        if(incoming == '\n'){
-            logmsg(debug, "R NL");
-        }
-        else if (incoming == '\r'){
-            logmsg(debug, "R CR");
-        }
-        else{
-            logmsg(debug, "R %c", incoming);
-        }
-        */
 
 
         //Detect end of transmission. SIM7028 puts cr lf at start and end of each uart transmission. This ISR assumes that "\r\n" never occurs elsewhere in data.
@@ -113,7 +196,7 @@ bool isrModemUartRx(__unused struct repeating_timer *t){
                 else{
                     // we were able to find a free buffer to put the next command into
                     // push buffer index to queue
-                    if(pushToQueue(&fullCommandBuffers, activeBuffer)){
+                    if(pushToIntQueue(&fullCommandBuffers, activeBuffer)){
                         logmsg(error, "FCB queue full, failed to push #%d=[%s]!", activeBuffer, commandBuffers[activeBuffer][2]);
                         // this shouldn't ever happen, since max queue size is same as number of buffers. But if it does, let's also mark the current buffer as empty.
                         commandBuffers[activeBuffer][2] = '\0';
@@ -122,11 +205,11 @@ bool isrModemUartRx(__unused struct repeating_timer *t){
                         logmsg(debug, "FCB push B%d=[%s]", activeBuffer, commandBuffers[activeBuffer] + 2); //skip first cr, lf in buffer 
                     }
                 }
-
                 activeBuffer = nextBuffer;
                 posInActiveBuffer = 0;
-
-
+            }
+            else{
+                posInActiveBuffer++; //this 
             }
         }
         else{
@@ -146,10 +229,12 @@ bool isrModemUartRx(__unused struct repeating_timer *t){
     return true;
 
 }
+    */
+
 
 int tryPopCommand(char **bufferPointer){
     int poppedIndex;
-    int retVal = popFromQueue(&fullCommandBuffers, &poppedIndex);
+    int retVal = popFromIntQueue(&fullCommandBuffers, &poppedIndex);
     if(retVal!=0){
         *bufferPointer = NULL;
         return 0;
