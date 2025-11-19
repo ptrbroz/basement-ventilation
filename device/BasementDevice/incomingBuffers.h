@@ -20,6 +20,9 @@ int tryPopCommand(char **bufferPointer);
 // ISR for moving chars from 32-byte hw fifo to a larger software queue
 void isrMoveCharsToIncomingQueue();
 
+// Removes all currently stored commands from queue and marks buffers for reuse.
+void discardBuffers();
+
 
 
 

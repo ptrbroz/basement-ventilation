@@ -30,7 +30,8 @@ void setup(){
 
     // set up interrupt for modem uart incoming chars
     irq_set_exclusive_handler(UART0_IRQ, isrMoveCharsToIncomingQueue);
-    * (volatile uint32_t *)(UART0_BASE + UART_UARTIMSC_OFFSET) = UART_UARTIMSC_RXIM_BITS;   // enable only RX interrupt (on fifo level reached)
+    * (volatile uint32_t *)(UART0_BASE + UART_UARTIMSC_OFFSET) |= UART_UARTIMSC_RXIM_BITS;  // enable interrupt on hw fifo level reached
+    * (volatile uint32_t *)(UART0_BASE + UART_UARTIMSC_OFFSET) |= UART_UARTIMSC_RTIM_BITS;  // enable timeout interrupt (hf fifo not empty & no incoming for some time)
     * (volatile uint32_t *)(UART0_BASE + UART_UARTIFLS_OFFSET) = (0b011 << 3);              // 0b011 on bits 5:3 sets fifo interrupt level to 3/4 = 24 bytes
     irq_set_enabled(UART0_IRQ, true);
 
