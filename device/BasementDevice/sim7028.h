@@ -5,6 +5,7 @@
 // Specifically, given input <str>, this sends <cr><lf>AT<str><cr><lf>.
 void sendAT(char *str);
 
-
+// Execute one cycle of modem-handling fsm
+void runFsm();
 
 #endif // SIM0728

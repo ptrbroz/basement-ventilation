@@ -1,9 +1,33 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
+#include "pico/time.h"
 #include "defines.h"
 #include <string.h>
 #include "queue.h"
 #include "logging.h"
+#include "sim7028.h"
+
+absolute_time_t transitionTime;         // timestamp representing time at which last state transition occured
+
+
+void runFsm(){
+
+    // check for incoming AT command
+    
+        // if present, copy over to struct, mark buffer for reuse
+        // send struct to preparser to fill out rest of struct
+
+    // calculate time since transition
+
+    // call current state function (arguments: callCount, time since transition, incoming AT struct. Retval: next state function)
+
+    // if state function differs, update transitionTime
+
+}
+
+
+
+
 
 
 void sendAT(char *str){
@@ -33,6 +57,25 @@ void sendAT(char *str){
     }
     logmsg(debug, "Sent AT[%s]", str);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
