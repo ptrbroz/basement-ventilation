@@ -10,10 +10,6 @@
 #include "defines.h"
 
 
-#define COMMAND_BUFFER_LEN 1024 //Assumption: no AT command line (ranging from <cr><lf> to another <cr><lf>, included) received from SIM7028 will be longer than COMMAND_BUFFER_LEN
-#define COMMAND_BUFFER_SLOTS 20 
-#define COMMAND_QUEUE_LEN (COMMAND_BUFFER_SLOTS+5) //COMMAND_BUFFER_SLOTS should be enough. Extra so that I don't need to think too hard about corner cases
-#define INCOMING_CHAR_QUEUE_LEN 4096
 
 // convention: commandBuffer is considered empty (and free to be overwritten) if the THIRD character in it is '\0'
 char *commandBuffers[COMMAND_BUFFER_SLOTS];             // received AT commands saved for processing. BEWARE! Final carriage return is replaced with \0
@@ -155,8 +151,15 @@ int processIncomingCharsIntoBuffers(int maxChars){
 }
 
 int tryPopCommand(char **bufferPointer){
+
+    uint32_t irqStatus = save_and_disable_interrupts(); 
+    //TODO: consider whether interrupts have to be disabled here. Disabling for now to be safe (what happens when popping from queue is interrupted by ISR that pushes to it?)
+
     int poppedIndex;
     int retVal = popFromIntQueue(&fullCommandBuffers, &poppedIndex);
+
+    restore_interrupts_from_disabled(irqStatus);
+
     if(retVal!=0){
         *bufferPointer = NULL;
         return 0;

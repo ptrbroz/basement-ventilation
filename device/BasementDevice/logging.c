@@ -13,7 +13,7 @@ void UNUSED_logmsg(LogLevel level, const char *format, ...){
     if(level >= usbLoggingLevel){
         char prefix = logLevelChar[level];
         printf("%c]", prefix);
-        char datetimeString[] = "dd.mm.hhmm";     //TODO: get actual datetime once 
+        char datetimeString[] = "dd.mm.hhmm";     //TODO: get actual datetime once it is known
         printf("%s:", datetimeString);
         va_list args;
         va_start(args, format);

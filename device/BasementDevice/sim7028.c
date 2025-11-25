@@ -6,16 +6,30 @@
 #include "queue.h"
 #include "logging.h"
 #include "sim7028.h"
+#include "stateFunctions.h"
 
 absolute_time_t transitionTime;         // timestamp representing time at which last state transition occured
 
 
 void runFsm(){
 
+    static StateMachineStruct stateMachine;
+
     // check for incoming AT command
+    char *incomingBuffer;
+    int retLen = tryPopCommand(&incomingBuffer);
+
+    if(retLen == 0){
+        // no incoming command was waiting
+        stateMachine.code = C_NONE;
+    }
+    else{
+        memcpy( &(stateMachine.rawResponse), incomingBuffer, retLen);
+        incomingBuffer[0] = '\0'; // mark buffer free for reuse
+
+    }
+
     
-        // if present, copy over to struct, mark buffer for reuse
-        // send struct to preparser to fill out rest of struct
 
     // calculate time since transition
 

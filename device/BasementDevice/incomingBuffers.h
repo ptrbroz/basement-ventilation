@@ -3,6 +3,10 @@
 
 #include "pico/time.h"
 
+#define COMMAND_BUFFER_LEN 1024 //Assumption: no AT command line (ranging from <cr><lf> to another <cr><lf>, included) received from SIM7028 will be longer than COMMAND_BUFFER_LEN
+#define COMMAND_BUFFER_SLOTS 20 
+#define COMMAND_QUEUE_LEN (COMMAND_BUFFER_SLOTS+5) //COMMAND_BUFFER_SLOTS should be enough. Extra so that I don't need to think too hard about corner cases
+#define INCOMING_CHAR_QUEUE_LEN 4096
 
 // Allocates memory for command buffers and supporting infrastructure. Only needs to be called once on startup. Returns 0 on success, 1 on fail
 int initCommandBuffers();
