@@ -7,11 +7,14 @@
 #include "logging.h"
 #include "sim7028.h"
 #include "stateFunctions.h"
+#include "atParser.h"
 
 absolute_time_t transitionTime;         // timestamp representing time at which last state transition occured
 
 
 void runFsm(){
+
+    logmsg(debug, "RUN FSM START");
 
     static StateMachineStruct stateMachine;
 
@@ -26,10 +29,11 @@ void runFsm(){
     else{
         memcpy( &(stateMachine.rawResponse), incomingBuffer, retLen);
         incomingBuffer[0] = '\0'; // mark buffer free for reuse
+        parseAT(&stateMachine);
 
+        logmsg(debug, "runFsm state after parse: code[%d], codelen[%d]", stateMachine.code, stateMachine.codeLen);   
     }
 
-    
 
     // calculate time since transition
 

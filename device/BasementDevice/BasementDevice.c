@@ -80,6 +80,11 @@ int main(){
         int number2 = processIncomingCharsIntoBuffers(100);
 
         logmsg(debug, "Proc'd: %d + %d", number, number2);
+
+
+        runFsm();
+
+
         busy_wait_ms(1500);
 
     }
