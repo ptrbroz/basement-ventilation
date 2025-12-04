@@ -12,7 +12,7 @@
 int initCommandBuffers();
 
 // Processes chars waiting in incoming queue into command buffers, handling at most maxChars chars. Returns number of chars processed.
-// Retval will be lower than maxChars if
+// Retval will be lower than maxChars if there were fewer chars in queue or if we run out of free command buffers.
 int processIncomingCharsIntoBuffers(int maxChars);
 
 // Get a pointer to a buffer containing next command from modem to be parsed, if there is one waiting.

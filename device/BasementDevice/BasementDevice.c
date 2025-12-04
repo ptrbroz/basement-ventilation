@@ -48,44 +48,20 @@ int main(){
     int counter = 0;
 
     logmsg(info, "wait 5s");
-
     busy_wait_ms(5000);
+
+    logmsg(info, "wait 3s");
+    busy_wait_ms(3000);
 
     logmsg(info, "loop begin");
 
     while(1){
 
-        counter++;
-
-        if(counter%2){
-            sendAT("");
-        }
-        else{
-            sendAT("random bad command");
-        }
-
-        char *command;
-        int len = tryPopCommand(&command);
-
-        logmsg(debug, "Trypop len : %d", len);
-
-        if(len > 0){
-            logmsg(debug, "Popped command: [%s]", command);
-            command[0] = '\0';
-        }
-        
-        busy_wait_ms(500);
-        int number = processIncomingCharsIntoBuffers(2);
-        busy_wait_ms(100);
-        int number2 = processIncomingCharsIntoBuffers(100);
-
-        logmsg(debug, "Proc'd: %d + %d", number, number2);
-
+        processIncomingCharsIntoBuffers(100);
 
         runFsm();
 
-
-        busy_wait_ms(1500);
+        sleep_ms(500);
 
     }
 

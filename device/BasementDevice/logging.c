@@ -2,7 +2,7 @@
 #include "stdio.h"
 #include "stdarg.h"
 
-LogLevel usbLoggingLevel = debug;
+LogLevel usbLoggingLevel = info;
 
 const char logLevelChar[] = "diwE~"; //chars used to prefix log messages of corresponding levels
 

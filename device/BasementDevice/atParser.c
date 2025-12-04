@@ -11,7 +11,13 @@ typedef struct{
 
 const Couple knownCodes[] = {
     {"OK", C_OK},
-    {"ERROR", C_ERROR}
+    {"ERROR", C_ERROR},
+    {"+CPIN", C_pCPIN},
+    {"+CSQ", C_pCSQ},
+    {"+CME ERROR", C_pCME_ERROR},
+    {"+CREG", C_pCREG},
+    {"+CEREG", C_pCEREG},
+    {"+CPSI", C_pCPSI}
 };
 
 #define knownCodesLen (sizeof(knownCodes) / sizeof(Couple))
@@ -23,7 +29,7 @@ ResponseCode codeParseLoop(char *message, int *codeLen){
 
     int sIndex = 0;
 
-    logmsg(debug, "CPL entry kcl = %d", knownCodesLen);
+    //logmsg(debug, "CPL entry kcl = %d", knownCodesLen);
 
     while(sIndex < COMMAND_BUFFER_LEN){
 
@@ -31,10 +37,10 @@ ResponseCode codeParseLoop(char *message, int *codeLen){
 
         // check which codes still match on this char
         for(int i = 0; i < knownCodesLen; i++){
-            logmsg(debug, "check i = %d, unmatch[i] = %d", i, unmatch[i]);
+            //logmsg(debug, "check i = %d, unmatch[i] = %d", i, unmatch[i]);
             if(!(unmatch[i])){
                 char codeChar = knownCodes[i].string[sIndex];
-                logmsg(debug, "        [%d][%d] %c ~ %c", sIndex, i, nextChar, codeChar);
+                //logmsg(debug, "        [%d][%d] %c ~ %c", sIndex, i, nextChar, codeChar);
                 if(codeChar == '\0'){
                     // reached end of code string without unmatching char -- this is the code we're looking for
                     *codeLen = sIndex;
@@ -43,14 +49,14 @@ ResponseCode codeParseLoop(char *message, int *codeLen){
                 else if(codeChar != nextChar){
                     unmatch[i] = 1;
                     possibleCodesLeft--;
-                    logmsg(debug, "UNMATCH");
+                    //logmsg(debug, "UNMATCH");
                 }
                 else{
-                    logmsg(debug, "match");
+                    //logmsg(debug, "match");
                 }
             }
         }
-        logmsg(debug, "pcl %d", possibleCodesLeft);
+        //logmsg(debug, "pcl %d", possibleCodesLeft);
 
         if(possibleCodesLeft <= 0){
             break;  // all codes unmatched, no reason to continue

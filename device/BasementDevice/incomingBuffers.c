@@ -132,11 +132,20 @@ int processIncomingCharsIntoBuffers(int maxChars){
             commandBuffers[activeBuffer][posInActiveBuffer - 1] = '\0'; //replace last CR with terminator to play nice with str funs
             commandBufferLen[activeBuffer] = posInActiveBuffer+1;
             activeBufferClosed = true;
-            logmsg(debug, "CB %d", activeBuffer);
-            if(pushToIntQueue(&fullCommandBuffers, activeBuffer)){
-                // queue full -- this should never happen
-                logmsg(error, "FCB queue full (wtf!!)");
-                commandBuffers[activeBuffer][2] = '\0';     // mark buffer for reuse since it wasn't pushed and as such will not be popped and marked. Probably does not matter
+
+            if(commandBufferLen[activeBuffer] <= 3){
+                // corner case with weird input -- len of 3 means first two bytes will be skipped (as they are assumed, wrongly, to be crlf) and the third byte
+                // will be the terminator. This will also cause tryPop to return zero or lower len... generally, lets not even push this to the queue and just discard it.
+                logmsg(debug, "CB#%d weird input (too short, CBL=%d) -- discarding [%s]", activeBuffer, commandBufferLen[activeBuffer], commandBuffers[activeBuffer]);
+                commandBuffers[activeBuffer][2] = '\0'; // mark for reuse -- not currently necessary as corner case likely only occurs for CBL=3, just to be sure
+            }
+            else{
+                logmsg(debug, "push CB#%d : [%s]", activeBuffer, commandBuffers[activeBuffer]+2);
+                if(pushToIntQueue(&fullCommandBuffers, activeBuffer)){
+                    // queue full -- this should never happen
+                    logmsg(error, "FCB queue full (wtf!!)");
+                    commandBuffers[activeBuffer][2] = '\0';     // mark buffer for reuse since it wasn't pushed and as such will not be popped and marked. Probably does not matter
+                }
             }
         }
         else{
@@ -165,6 +174,7 @@ int tryPopCommand(char **bufferPointer){
         return 0;
     }
     else{
+        logmsg(debug, "pop CB %d, len %d", poppedIndex, commandBufferLen[poppedIndex] - 3);
         // start after first cr, lf, at byte 2. This means that bufferPointer[0] (outside this file) will correspond to commandBuffer[i][2] (inside this file)
         *bufferPointer = commandBuffers[poppedIndex] + 2; 
         return commandBufferLen[poppedIndex] - 3; // stored len includes first crlf which is skipped and last lf which is preceded by string terminator, hence the reduction

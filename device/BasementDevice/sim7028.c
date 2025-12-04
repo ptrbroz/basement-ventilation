@@ -14,14 +14,23 @@ absolute_time_t transitionTime;         // timestamp representing time at which 
 
 void runFsm(){
 
-    logmsg(debug, "RUN FSM START");
+    // TODO: some kind of watchdog here that restarts the statemachine if it becomes stuck in a state for too long (to handle, hopefully rare, situation where
+    // incoming uart data is corrupted and thus fsm does not move). Could also be handled in individual states (in each one -- do I want to do that?)
 
-    static StateMachineStruct stateMachine;
+    static StateMachineStruct stateMachine = {.nextState = begin};
+    static absolute_time_t stateTransitionTime;
+    static bool stateTransition = true;
+    absolute_time_t currentTime = get_absolute_time();
+
+    if(stateTransition){
+        stateTransitionTime = currentTime;
+        stateMachine.callCounter = 0;
+        stateMachine.subState = 0;
+    }
 
     // check for incoming AT command
     char *incomingBuffer;
     int retLen = tryPopCommand(&incomingBuffer);
-
     if(retLen == 0){
         // no incoming command was waiting
         stateMachine.code = C_NONE;
@@ -29,17 +38,27 @@ void runFsm(){
     else{
         memcpy( &(stateMachine.rawResponse), incomingBuffer, retLen);
         incomingBuffer[0] = '\0'; // mark buffer free for reuse
+        logmsg(debug, "FSM parsing: [%s]", stateMachine.rawResponse);
         parseAT(&stateMachine);
-
-        logmsg(debug, "runFsm state after parse: code[%d], codelen[%d]", stateMachine.code, stateMachine.codeLen);   
     }
 
-
     // calculate time since transition
+    stateMachine.msSinceTransition = (absolute_time_diff_us(stateTransitionTime, currentTime)) / 1000;
 
-    // call current state function (arguments: callCount, time since transition, incoming AT struct. Retval: next state function)
+    // call current state function
+    StateFunction *preCallFun = stateMachine.nextState;
+    stateMachine.nextState(&stateMachine);
+    stateMachine.callCounter++;
 
-    // if state function differs, update transitionTime
+    // detect state transition for time update on next run
+    stateTransition = (stateMachine.nextState != preCallFun);
+
+    if(stateTransition){
+        logmsg(debug, "FSM: %s -> %s. Stats at transition: cc=%d, ss=%d, msst=%d.", stateFunctionToString(preCallFun), stateFunctionToString(stateMachine.nextState), stateMachine.callCounter, stateMachine.subState, stateMachine.msSinceTransition);
+    }
+    else{
+        logmsg(debug, "FSM: @ %s. Stats: cc=%d, ss=%d, msst=%d.", stateFunctionToString(preCallFun), stateMachine.callCounter, stateMachine.subState, stateMachine.msSinceTransition);
+    }
 
 }
 
