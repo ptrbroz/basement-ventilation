@@ -40,8 +40,50 @@ void setup(){
 
 int main(){
 
+    // test 
+    stdio_init_all(); //includes stdout to usb uart init @ 115200 baud
+    gpio_init(5); 
+    gpio_set_dir(5, GPIO_OUT);
+
+    while(0){
+        gpio_put(5,1);
+        busy_wait_ms(30);
+        gpio_put(5,0);
+        busy_wait_ms(10);
+    }
+
+    while(1){
+        int number = 156;
+        float pi = 3.14;
+        char msg[] = "Hello";
+        char fstring[] = "Testing: the number is %d, pi is %.2f, the message is %s";
+
+        busy_wait_ms(1000);
+
+        // measured about 100us
+        gpio_put(5,1);
+        gpio_put(5,0);
+
+        busy_wait_ms(50);
+
+        // measured 106.43us
+        gpio_put(5,1);
+        logmsg(error, fstring, number, pi, msg);
+        gpio_put(5,0);
+
+        busy_wait_ms(50);
+
+        // measured 106.48us
+        gpio_put(5,1);
+        test_logmsg(error, fstring, number, pi, msg);
+        gpio_put(5,0);
+    }
+
+
+
     // wait 1 s before init to avoid startup messages by sim module (verify image sha256 whatever)
     busy_wait_ms(1000);
+
 
     setup();
 

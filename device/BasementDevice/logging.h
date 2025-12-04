@@ -24,6 +24,8 @@ extern LogLevel usbLoggingLevel;
 // \n\r is added to end of logged line automatically and thus shouldn't be included in format
 void UNUSED_logmsg(LogLevel level, const char *format, ...);
 
+void test_logmsg(LogLevel level, const char *format, ...);
+
 // Same as UNUSED_logmsg, but rewritten as macro to avoid overhead. Turns out "function 'logmsg' can never be inlined because it uses variable argument lists"...
 #define logmsg(level, format, ...)                              \
     do{                                                         \
